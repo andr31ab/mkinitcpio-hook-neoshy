@@ -1,0 +1,14 @@
+pkgbase = mkinitcpio-hook-neoshy
+	pkgdesc = Custom mkinitcpio hook to mount container file from block device before running encrypt-hook
+	pkgver = 1.0
+	pkgrel = 1
+	url = https://github.com/andr31ab
+	arch = any
+	license = MIT
+	depends = mkinitcpio
+	source = hook
+	source = install
+	sha256sums = SKIP
+	sha256sums = SKIP
+
+pkgname = mkinitcpio-hook-neoshy
