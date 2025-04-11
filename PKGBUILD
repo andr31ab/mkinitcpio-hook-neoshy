@@ -7,8 +7,8 @@ arch=('any')
 url="https://github.com/andr31ab"
 license=('MIT')
 depends=('mkinitcpio')
-source=('hook' 'install' 'README.md')
-sha256sums=('SKIP' 'SKIP' 'SKIP')
+source=('hook' 'install' 'README.md' 'README-ru.md')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
     install -Dm755 "$srcdir/hook" "$pkgdir/usr/lib/initcpio/hooks/neoshy"
