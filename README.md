@@ -7,7 +7,9 @@
 
 Custom mkinitcpio hook to mount a container image from a block device before running the `encrypt` hook.
 
-## What it does
+---
+
+## 💡 What it does
 
 This hook is intended for use cases where your encrypted root filesystem is stored *inside a container file* on a block device, rather than on the block device itself.
 
@@ -18,34 +20,55 @@ It:
 3. Attaches it to a loop device
 4. Makes the loop device available to the `encrypt` hook, via standard `cryptdevice=...` kernel parameter
 
-## Kernel cmdline usage
+---
+
+## 🧵 Kernel cmdline usage
 
 You must add the following parameters to your kernel cmdline:
 
 src_dev=/dev/your_block_device src_img=/relative/path/to/container.img cryptdevice=/dev/loop0:your_crypt_name root=/dev/mapper/your_crypt_name
 
+
 Example:
 
 src_dev=/dev/nvme0n1p3 src_img=/crypto/rootfs.img cryptdevice=/dev/loop0:cryptroot root=/dev/mapper/cryptroot
 
-## On Arch-based distros you can install this package from AUR:
 
-paru -S mkinitcpio-hook-neoshy (Of cause you can use another aur-helper :) )
-or just makepkg -i in source directory
+---
 
-## Installation on another distros:
-make install 
+## 📦 Installation
 
-Then add `neoshy` **before** `encrypt` in your `/etc/mkinitcpio.conf` HOOKS-section:
-HOOKS=(base udev autodetect modconf block keyboard `neoshy` `encrypt` filesystems fsck)
+### ✅ On Arch-based distros (AUR):
+
+Install via your favorite AUR helper:
+
+```bash
+paru -S mkinitcpio-hook-neoshy
+# or
+yay -S mkinitcpio-hook-neoshy
+
+Or manually:
+
+git clone https://aur.archlinux.org/mkinitcpio-hook-neoshy.git
+cd mkinitcpio-hook-neoshy
+makepkg -si
+
+💻 On other distros (manual install):
+
+make install
+
+🔧 Configuration
+
+After installation, add neoshy before encrypt in your /etc/mkinitcpio.conf HOOKS array:
+
+HOOKS=(base udev autodetect modconf block keyboard neoshy encrypt filesystems fsck)
 
 Then rebuild your initramfs:
+
 sudo mkinitcpio -P
 
-## License
+📜 License
 
 MIT
 
----
-Author: Andrei A. Bykov <andrei.a.bykov@hotmail.com>
-
+Maintainer: Andrei A. Bykov <andrei.a.bykov@hotmail.com>
