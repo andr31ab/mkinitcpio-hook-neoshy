@@ -8,6 +8,8 @@ pkgbase = mkinitcpio-hook-neoshy
 	depends = mkinitcpio
 	source = hook
 	source = install
+	source = README.md
+	sha256sums = SKIP
 	sha256sums = SKIP
 	sha256sums = SKIP
 

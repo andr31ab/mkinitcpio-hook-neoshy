@@ -7,10 +7,11 @@ arch=('any')
 url="https://github.com/andr31ab"
 license=('MIT')
 depends=('mkinitcpio')
-source=('hook' 'install')
-sha256sums=('SKIP' 'SKIP')
+source=('hook' 'install' 'README.md')
+sha256sums=('SKIP' 'SKIP' 'SKIP')
 
 package() {
     install -Dm755 "$srcdir/hook" "$pkgdir/usr/lib/initcpio/hooks/neoshy"
     install -Dm755 "$srcdir/install" "$pkgdir/usr/lib/initcpio/install/neoshy"
+	install -Dm644 "$srcdir/README.md" "$pkgdir/usr/share/doc/$pkgname/README.md"
 }
