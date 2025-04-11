@@ -1,5 +1,10 @@
 # mkinitcpio-hook-neoshy
 
+[![AUR](https://img.shields.io/aur/version/mkinitcpio-hook-neoshy.svg)](https://aur.archlinux.org/packages/mkinitcpio-hook-neoshy)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Build](https://img.shields.io/badge/build-makepkg-brightgreen)](#)
+[![Shell Style](https://img.shields.io/badge/style-posix--ash-yellow)](#)
+
 Custom mkinitcpio hook to mount a container image from a block device before running the `encrypt` hook.
 
 ## What it does
