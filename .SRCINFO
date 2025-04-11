@@ -6,6 +6,7 @@ pkgbase = mkinitcpio-hook-neoshy
 	arch = any
 	license = MIT
 	depends = mkinitcpio
+	depends = cryptsetup
 	source = hook
 	source = install
 	source = README.md

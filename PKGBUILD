@@ -6,7 +6,7 @@ pkgdesc="Custom mkinitcpio hook to mount container file from block device before
 arch=('any')
 url="https://github.com/andr31ab"
 license=('MIT')
-depends=('mkinitcpio')
+depends=('mkinitcpio' 'cryptsetup')
 source=('hook' 'install' 'README.md' 'README-ru.md')
 sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP')
 
