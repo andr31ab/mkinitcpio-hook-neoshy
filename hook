@@ -1,0 +1,12 @@
+#!/usr/bin/ash
+
+run_hook() {
+    echo "[neoshy] Starting hook"
+
+    src_dev="$(getarg src_dev)"
+    src_img="$(getarg src_img)"
+
+    mkdir -p /mnt
+    mount "$src_dev" /mnt
+    losetup --show --find "/mnt$src_img"
+}
