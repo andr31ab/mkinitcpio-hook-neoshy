@@ -5,6 +5,8 @@
 [![Build](https://img.shields.io/badge/build-makepkg-brightgreen)](#)
 [![Shell Style](https://img.shields.io/badge/style-posix--ash-yellow)](#)
 
+👉 [README на русском](README-ru.md)
+
 Custom mkinitcpio hook to mount a container image from a block device before running the `encrypt` hook.
 
 ---
