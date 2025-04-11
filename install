@@ -1,0 +1,15 @@
+#!/bin/bash
+
+build() {
+    add_module "loop"
+    add_binary losetup
+    add_binary mount
+    add_runscript
+}
+
+help() {
+    cat <<HELPEOF
+Minimal neoshy hook installer:
+Mounts src_dev and maps src_img to /dev/loopX before starting the encrypt hook.
+HELPEOF
+}
