@@ -10,6 +10,5 @@ run_hook() {
     mount "$src_dev" /mnt
     losetup --show --find "/mnt$src_img"
 	umount /mnt
-	rm -rf /mnt
 	echo "[neoshy] Finishing hook"
 }
