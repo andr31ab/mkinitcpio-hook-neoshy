@@ -9,4 +9,7 @@ run_hook() {
     mkdir -p /mnt
     mount "$src_dev" /mnt
     losetup --show --find "/mnt$src_img"
+	umount /mnt
+	rm -rf /mnt
+	echo "[neoshy] Finishing hook"
 }
