@@ -5,7 +5,7 @@
 [![Build](https://img.shields.io/badge/build-makepkg-brightgreen)](#)
 [![Shell Style](https://img.shields.io/badge/style-posix--ash-yellow)](#)
 
-👉 [README на русском](README-ru.md)
+👉 [README in Russian](README-ru.md)
 
 Custom mkinitcpio hook to mount a container image from a block device before running the `encrypt` hook.
 
@@ -35,8 +35,13 @@ src_dev=/dev/your_block_device src_img=/relative/path/to/container.img cryptdevi
 ### Example
 
 ```
-src_dev=/dev/nvme0n1p3 src_img=/crypto/rootfs.img cryptdevice=/dev/loop0:cryptroot root=/dev/mapper/cryptroot
+src_dev=/dev/nvme0n1p3 src_img=/crypto/rootfs.img cryptdevice=/dev/loop0:cryptroot cryptkey=/dev/sda5:0:3214325 crypto:::: root=/dev/mapper/cryptroot rw initrd=/Arch/initramfs-linux.img
 ```
+
+> **Note:** Parameters `cryptdevice`, `cryptkey`, and `crypto` are provided and handled by the `encrypt` hook. This project does not implement or alter their behavior.  
+> For detailed information on how to use these parameters, refer to the [ArchWiki article on dm-crypt system configuration](https://wiki.archlinux.org/title/Dm-crypt/System_configuration).
+
+> **Hint:** The loop device (`/dev/loop0`) is created by this hook when the container image is attached. In typical setups where no other loop devices are in use during early boot, this device will be `/dev/loop0`. You must pass that path to the `encrypt` hook via the `cryptdevice=...` parameter.
 
 ---
 
