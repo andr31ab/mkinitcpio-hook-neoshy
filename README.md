@@ -81,6 +81,12 @@ After installation, add `neoshy` before `encrypt` in your `/etc/mkinitcpio.conf`
 HOOKS=(base udev autodetect modconf block keyboard neoshy encrypt filesystems fsck)
 ```
 
+In some cases in order to correct setup system boot you also may need to add values in 'MODULES' array:
+
+```bash
+MODULES=(<your_modules> dm_mod dm_crypt xts sha256)
+```
+
 Then rebuild your initramfs:
 
 ```bash

@@ -9,10 +9,10 @@ license=('MIT')
 depends=('mkinitcpio' 'cryptsetup')
 source=('hook' 'install' 'README.md' 'README-ru.md' 'CHANGELOG.md')
 sha256sums=(
-	'd39cf974483f6879b7501a8cf4445069a727bf39b40863b4a07bb4c4daef1c70'
+	'de8b596eef5aca3b335e946cb09b8ea58497033e675ae1280683741857886591'
 	'9031dc358ae5ac9f79117afa9735b4ae318eeeda63c9a8f46b154bdc6c4b369c'
-	'7a5d98870a5084ede81b44f36f2f4398788ecb2442f62493a8ba00e1fe82711b'
-	'd2dba163d4d589fd107bd2e305cc4a548adf18a317d9b3ede165b86a2790c4de'
+	'b2c7fa753ac5d9abd82d6c6eb3b2e7ab6414785f754e4f4f1671f13df038f9fc'
+	'614c5a823ab23b6d09c5081fb8ed300bb6dcc2b98ed9eeaf1bcb3cd3bbd2d1c7'
 	'c8b8b505317fe5c1c7793c3d01f797aa6b46c907ad507112fde6c949564adfab')
 
 package() {

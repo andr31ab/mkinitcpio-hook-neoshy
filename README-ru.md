@@ -81,7 +81,13 @@ make install
 HOOKS=(base udev autodetect modconf block keyboard neoshy encrypt filesystems fsck)
 ```
 
-Затем пересобери initramfs:
+В некоторых случаях для корректной загрузки системы вам необходимо так же добавить следующее в массив 'MODULES':
+
+```bash
+MODULES=(<ваши_модули> dm_mod dm_crypt xts sha256)
+```
+
+Затем пересоберите initramfs:
 
 ```bash
 sudo mkinitcpio -P
