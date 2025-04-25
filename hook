@@ -1,13 +1,61 @@
 #!/usr/bin/ash
 
+device_identify() {
+	local dev="$1"
+
+	case "$dev" in
+		UUID=*)
+			echo "/dev/disk/by-uuid/${dev#UUID=}"
+			;;
+		PARTUUID=*)
+			echo "/dev/disk/by-partuuid/${dev#PARTUUID=}"
+			;;
+		LABEL=*)
+			echo "/dev/disk/by-label/${dev#LABEL=}"
+			;;
+		PARTLABEL=*)
+			echo "/dev/disk/by-partlabel/${dev#PARTLABEL=}"
+			;;
+		/dev/*)
+			echo "$dev"
+			;;
+		*)
+			echo "[neoshy] ERROR: Unknown device or device format: $dev" >&2
+			exit 1
+			;;
+	esac
+}
+
 run_hook() {
     echo "[neoshy] Starting hook"
 
-    src_dev="$(getarg src_dev)"
-    src_img="$(getarg src_img)"
+    src_rootfs="$(getarg src_rootfs)"
 
-    mkdir -p /mnt
-    mount "$src_dev" /mnt
-    losetup --show --find "/mnt$src_img"
+	if [ -z "$src_rootfs" ]; then
+        echo "[neoshy] ERROR: Missing required parameter: src_rootfs" >&2
+        exit 1
+    fi
+
+	src_dev="${src_rootfs%%:*}"
+	src_img="${src_rootfs#*:}"
+
+	if [ -z "$src_dev" ] || [ -z "$src_img" ]; then
+        echo "[neoshy] ERROR: Invalid src_rootfs format" >&2
+        exit 1
+    fi
+
+	real_dev=$(device_identify "$src_dev")
+	echo "[neoshy] Mounting device: $real_dev"
+	mkdir -p /mnt
+	mount $real_dev /mnt
+
+	if [ ! -f "/mnt$src_img" ]; then
+        echo "[neoshy] ERROR: Image file not found: /mnt$src_img" >&2
+        exit 1
+    fi
+
+	echo "[neoshy] Attaching loop device for: /mnt$src_img"
+	losetup --show --find "/mnt$src_img"
+
 	echo "[neoshy] Finishing hook"
 }

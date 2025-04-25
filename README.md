@@ -17,8 +17,8 @@ This hook is designed for setups where your encrypted root filesystem is stored 
 
 It performs the following steps:
 
-1. Mounts the block device specified by `src_dev=...`
-2. Locates the container image via `src_img=...`
+1. Mounts the block device specified by `src_rootfs=...`
+2. Locates the container image inside it
 3. Attaches it to a loop device
 4. Makes the loop device accessible to the `encrypt` hook via `cryptdevice=...`
 
@@ -26,30 +26,35 @@ It performs the following steps:
 
 ## 🧵 Kernel cmdline usage
 
-You must add the following parameters to your kernel cmdline:
+You must add the following parameter to your kernel cmdline:
 
 ```
-src_dev=/dev/your_block_device src_img=/relative/path/to/container.img cryptdevice=/dev/loop0:your_crypt_name root=/dev/mapper/your_crypt_name
+src_rootfs=<device_identifier>:/path/to/container.img cryptdevice=/dev/loop0:your_crypt_name root=/dev/mapper/your_crypt_name
 ```
+
+Supported `<device_identifier>` formats:
+- `/dev/sdXY`
+- `UUID=<uuid>`
+- `PARTUUID=<partuuid>`
+- `LABEL=<label>`
+- `PARTLABEL=<partlabel>`
 
 ### Example
 
 ```
-src_dev=/dev/nvme0n1p3 src_img=/crypto/rootfs.img cryptdevice=/dev/loop0:cryptroot cryptkey=/dev/sda5:0:3214325 crypto:::: root=/dev/mapper/cryptroot rw initrd=/Arch/initramfs-linux.img
+src_rootfs=UUID=aaaaaaaa-1111-bbbb-2222-cccccccccccc:/crypto/rootfs.img cryptdevice=/dev/loop0:cryptroot cryptkey=PARTUUID=00000000-xxxx-yyyy-9999-777777777777:ext4:/keyfile crypto:::: root=/dev/mapper/cryptroot rw initrd=\Arch\initramfs-linux.img
 ```
 
 > **Note:** Parameters `cryptdevice`, `cryptkey`, and `crypto` are provided and handled by the `encrypt` hook. This project does not implement or alter their behavior.  
-> For detailed information on how to use these parameters, refer to the [ArchWiki article on dm-crypt system configuration](https://wiki.archlinux.org/title/Dm-crypt/System_configuration).
+> For detailed information, refer to the [ArchWiki article on dm-crypt system configuration](https://wiki.archlinux.org/title/Dm-crypt/System_configuration).
 
-> **Hint:** The loop device (`/dev/loop0`) is created by this hook when the container image is attached. In typical setups where no other loop devices are in use during early boot, this device will be `/dev/loop0`. You must pass that path to the `encrypt` hook via the `cryptdevice=...` parameter.
+> **Hint:** The loop device (`/dev/loop0`) is created by this hook when the container image is attached.
 
 ---
 
 ## 📦 Installation
 
 ### ✅ On Arch-based distros (AUR):
-
-Install via your favorite AUR helper:
 
 ```bash
 paru -S mkinitcpio-hook-neoshy
@@ -81,13 +86,13 @@ After installation, add `neoshy` before `encrypt` in your `/etc/mkinitcpio.conf`
 HOOKS=(base udev autodetect modconf block keyboard neoshy encrypt filesystems fsck)
 ```
 
-In some cases in order to correct setup system boot you also may need to add values in 'MODULES' array:
+You may also need to add required modules in `MODULES` array:
 
 ```bash
 MODULES=(<your_modules> dm_mod dm_crypt xts sha256)
 ```
 
-Then rebuild your initramfs:
+Rebuild your initramfs:
 
 ```bash
 sudo mkinitcpio -P

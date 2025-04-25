@@ -9,11 +9,11 @@ license=('MIT')
 depends=('mkinitcpio' 'cryptsetup')
 source=('hook' 'install' 'README.md' 'README-ru.md' 'CHANGELOG.md')
 sha256sums=(
-	'de8b596eef5aca3b335e946cb09b8ea58497033e675ae1280683741857886591'
+	'61c0a720e08c2d7af3639c691d95e3e3fe607c576346c2aa294c25383e86f121'
 	'9031dc358ae5ac9f79117afa9735b4ae318eeeda63c9a8f46b154bdc6c4b369c'
-	'b2c7fa753ac5d9abd82d6c6eb3b2e7ab6414785f754e4f4f1671f13df038f9fc'
-	'614c5a823ab23b6d09c5081fb8ed300bb6dcc2b98ed9eeaf1bcb3cd3bbd2d1c7'
-	'c8b8b505317fe5c1c7793c3d01f797aa6b46c907ad507112fde6c949564adfab')
+	'18f616624687fcfda5e107481af418ea61ebbf331d1c83a3c317645cf545aaac'
+	'18c5effa27400a07e40433d86f3eb0f313f8ad1879f56ca932db04b19d18666a'
+	'3e75e98f6f1944691c649b5e4a3c7a478b4b8580dcdcb96d201a8178025014db')
 
 package() {
     install -Dm755 "$srcdir/hook" "$pkgdir/usr/lib/initcpio/hooks/neoshy"
