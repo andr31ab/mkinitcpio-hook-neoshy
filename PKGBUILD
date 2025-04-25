@@ -1,7 +1,7 @@
 # Maintainer: Andrei A. Bykov <andreiab9019@gmail.com>
 pkgname=mkinitcpio-hook-neoshy
-pkgver=1.0
-pkgrel=2
+pkgver=1.1
+pkgrel=1
 pkgdesc="Custom mkinitcpio hook to mount container file from block device before running encrypt-hook"
 arch=('any')
 url="https://github.com/andr31ab/mkinitcpio-hook-neoshy"
