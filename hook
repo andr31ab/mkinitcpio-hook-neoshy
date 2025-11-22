@@ -7,6 +7,7 @@ device_identify() {
         PARTUUID=*)   echo "/dev/disk/by-partuuid/${dev#PARTUUID=}" ;;
         LABEL=*)      echo "/dev/disk/by-label/${dev#LABEL=}" ;;
         PARTLABEL=*)  echo "/dev/disk/by-partlabel/${dev#PARTLABEL=}" ;;
+		ID=*)         echo "/dev/disk/by-id/${dev#ID=}" ;;
         /dev/*)       echo "$dev" ;;
         *)            echo "[neoshy] ERROR: Unknown device/format: $dev" >&2; exit 1 ;;
     esac
@@ -35,7 +36,7 @@ run_hook() {
         echo "[neoshy] ERROR: src_rootfs required" >&2; exit 1
     fi
 
-    # Парсинг пути к файлу .mkv (берем все после двоеточия)
+
     src_img="${src_rootfs#*:}"
     mount_point="/mnt"
     mkdir -p "$mount_point"
@@ -51,8 +52,6 @@ run_hook() {
         CRYPT_CMD="cryptsetup open --type plain"
 
         # Разбираем outer_crypto=HASH:CIPHER:KEYSIZE:OFFSET
-        # Пример для тебя: :aes-xts-plain64:256:19862809
-        if [ -n "$outer_crypto_param" ]; then
             OLD_IFS="$IFS"; IFS=":"; set -- $outer_crypto_param; IFS="$OLD_IFS"
             
             _hash="$1"
