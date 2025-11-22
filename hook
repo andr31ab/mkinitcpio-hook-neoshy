@@ -1,59 +1,69 @@
 #!/usr/bin/ash
+# mkinitcpio hook: neoshy
+# Поддерживает legacy и "матрёшку" (outer plain dm-crypt -> inner контейнер -> encrypt)
 
 device_identify() {
-    local dev="$1"
+    dev="$1"
     case "$dev" in
-        UUID=*)       echo "/dev/disk/by-uuid/${dev#UUID=}" ;;
-        PARTUUID=*)   echo "/dev/disk/by-partuuid/${dev#PARTUUID=}" ;;
-        LABEL=*)      echo "/dev/disk/by-label/${dev#LABEL=}" ;;
-        PARTLABEL=*)  echo "/dev/disk/by-partlabel/${dev#PARTLABEL=}" ;;
-		ID=*)         echo "/dev/disk/by-id/${dev#ID=}" ;;
-        /dev/*)       echo "$dev" ;;
-        *)            echo "[neoshy] ERROR: Unknown device/format: $dev" >&2; exit 1 ;;
+        UUID=*)       printf '/dev/disk/by-uuid/%s' "${dev#UUID=}" ;;
+        PARTUUID=*)   printf '/dev/disk/by-partuuid/%s' "${dev#PARTUUID=}" ;;
+        LABEL=*)      printf '/dev/disk/by-label/%s' "${dev#LABEL=}" ;;
+        PARTLABEL=*)  printf '/dev/disk/by-partlabel/%s' "${dev#PARTLABEL=}" ;;
+        ID=*)         printf '/dev/disk/by-id/%s' "${dev#ID=}" ;;
+        /dev/*)       printf '%s' "$dev" ;;
+        *)            printf '[neoshy] ERROR: Unknown device/format: %s\n' "$dev" >&2; exit 1 ;;
     esac
 }
 
 wait_for_device() {
-    local dev="$1"
-    local timeout=10
+    dev="$1"
+    timeout="${2:-10}"
     echo "[neoshy] Waiting for device $dev..."
-    while [ ! -b "$dev" ] && [ $timeout -gt 0 ]; do
+    while [ ! -b "$dev" ] && [ "$timeout" -gt 0 ]; do
         sleep 1
         timeout=$((timeout - 1))
     done
-    [ -b "$dev" ] || { echo "[neoshy] ERROR: Device $dev timeout." >&2; exit 1; }
+    if [ ! -b "$dev" ]; then
+        echo "[neoshy] ERROR: Device $dev timeout." >&2
+        exit 1
+    fi
 }
 
 run_hook() {
     echo "[neoshy] Starting hook (Double-Crypto)"
 
-    # Параметры из cmdline
+    # Параметры из cmdline (mkinitcpio предоставляет getarg)
     src_rootfs="$(getarg src_rootfs)"
-    outer_dev_param="$(getarg outer_device)" 
-    outer_crypto_param="$(getarg outer_crypto)" 
+    outer_dev_param="$(getarg outer_device)"
+    outer_crypto_param="$(getarg outer_crypto)"
 
     if [ -z "$src_rootfs" ]; then
-        echo "[neoshy] ERROR: src_rootfs required" >&2; exit 1
+        echo "[neoshy] ERROR: src_rootfs required" >&2
+        exit 1
     fi
 
-
+    # src_img = всё после первого двоеточия (в legacy режиме слева будет device)
     src_img="${src_rootfs#*:}"
     mount_point="/mnt"
     mkdir -p "$mount_point"
 
-    # === 1. Разблокировка внешнего носителя ===
+    # === 1. Разблокировка внешнего носителя (если задан outer_device) ===
     if [ -n "$outer_dev_param" ]; then
-        echo "[neoshy] Mode: Encrypted Outer Container"
-        
-        real_outer_dev=$(device_identify "$outer_dev_param")
-        wait_for_device "$real_outer_dev"
+        echo "[neoshy] Mode: Encrypted Outer Container (matryoshka)"
 
-        # Формируем команду. Всегда plain.
+        real_outer_dev="$(device_identify "$outer_dev_param")"
+        wait_for_device "$real_outer_dev" 15
+
+        # Базовая команда (plain dm-crypt)
         CRYPT_CMD="cryptsetup open --type plain"
 
-        # Разбираем outer_crypto=HASH:CIPHER:KEYSIZE:OFFSET
-            OLD_IFS="$IFS"; IFS=":"; set -- $outer_crypto_param; IFS="$OLD_IFS"
-            
+        # Разбираем outer_crypto, если задан
+        if [ -n "$outer_crypto_param" ]; then
+            OLD_IFS="$IFS"
+            IFS=":"
+            set -- $outer_crypto_param
+            IFS="$OLD_IFS"
+
             _hash="$1"
             _cipher="$2"
             _keysize="$3"
@@ -63,49 +73,79 @@ run_hook() {
             [ -n "$_cipher" ]  && CRYPT_CMD="$CRYPT_CMD --cipher $_cipher"
             [ -n "$_keysize" ] && CRYPT_CMD="$CRYPT_CMD --key-size $_keysize"
             [ -n "$_offset" ]  && CRYPT_CMD="$CRYPT_CMD --offset $_offset"
-            
+
             echo "[neoshy] Crypto params applied: H:$_hash C:$_cipher K:$_keysize O:$_offset"
         else
             echo "[neoshy] Using system defaults for crypto"
         fi
 
         echo "[neoshy] Please enter passphrase for OUTER drive:"
-        if ! $CRYPT_CMD "$real_outer_dev" neoshy_outer; then
-             echo "[neoshy] ERROR: Unlock failed!" >&2; exit 1
+        # Попытка открыть устройство
+        if ! ${CRYPT_CMD} "$real_outer_dev" neoshy_outer; then
+            echo "[neoshy] ERROR: Unlock failed!" >&2
+            exit 1
         fi
 
         target_dev="/dev/mapper/neoshy_outer"
+
     else
-        # Legacy mode (без внешнего шифрования)
+        # Legacy mode (контейнер на физическом разделе)
         src_dev_legacy="${src_rootfs%%:*}"
-        [ -z "$src_dev_legacy" ] && { echo "[neoshy] ERROR: Legacy format error" >&2; exit 1; }
-        real_dev=$(device_identify "$src_dev_legacy")
-        wait_for_device "$real_dev"
+        if [ -z "$src_dev_legacy" ]; then
+            echo "[neoshy] ERROR: Legacy format error (device part missing)" >&2
+            exit 1
+        fi
+        real_dev="$(device_identify "$src_dev_legacy")"
+        wait_for_device "$real_dev" 10
         target_dev="$real_dev"
     fi
 
     # === 2. Монтирование ===
     echo "[neoshy] Mounting $target_dev..."
-    # Ждем появления маппера
-    while [ ! -b "$target_dev" ]; do sleep 0.1; done
+    # Ждём появления блока
+    wait_for_device "$target_dev" 10
 
-    if ! mount "$target_dev" "$mount_point"; then
-        # Фолбэк на явный exfat, если auto не сработал
-        mount -t exfat "$target_dev" "$mount_point" || { echo "[neoshy] Mount failed"; exit 1; }
+    if ! mount "$target_dev" "$mount_point" 2>/dev/null; then
+        # Фолбэк на exfat при неудаче
+        if ! mount -t exfat "$target_dev" "$mount_point" 2>/dev/null; then
+            echo "[neoshy] Mount failed for $target_dev" >&2
+            exit 1
+        fi
     fi
 
     full_path="${mount_point}${src_img}"
     if [ ! -f "$full_path" ]; then
-        echo "[neoshy] ERROR: File not found: $full_path" >&2; exit 1
+        echo "[neoshy] ERROR: File not found: $full_path" >&2
+        exit 1
     fi
 
     # === 3. Loopback ===
-    echo "[neoshy] Setting up loop device..."
-    # Пытаемся занять loop0, как требует твой следующий хук
-    if ! losetup /dev/loop0 "$full_path" 2>/dev/null; then
-        echo "[neoshy] WARNING: loop0 busy! Using next free loop."
-        losetup --show --find "$full_path"
+    echo "[neoshy] Setting up loop device for $full_path ..."
+    # Пытаемся занять /dev/loop0 — для совместимости с encrypt-скриптом
+    if losetup /dev/loop0 "$full_path" 2>/dev/null; then
+        loop_dev="/dev/loop0"
+        echo "[neoshy] Attached to /dev/loop0"
     else
-        echo "/dev/loop0"
+        echo "[neoshy] /dev/loop0 busy, using next free loop"
+        # --show выводит занятое имя; убираем возможные ошибки в stderr
+        loop_dev="$(losetup --show --find "$full_path" 2>/dev/null)" || {
+            echo "[neoshy] ERROR: failed to setup loop device" >&2
+            exit 1
+        }
+        echo "[neoshy] Attached to $loop_dev"
     fi
+
+    # Отмонтируем outer fs — encrypt/дальнейшие хуки будут работать по /dev/loop*
+    # Не удаляем маппер outer (оставляем открытым), но можно размонтировать точку
+    if mountpoint -q "$mount_point" 2>/dev/null; then
+        umount "$mount_point" 2>/dev/null || true
+    fi
+
+    # Выводим на stdout путь к loop-устройству (чтобы было видно в логах)
+    echo "[neoshy] READY: loop device is $loop_dev"
+    # И экспортируем переменную (не всегда нужно; mkinitcpio/encrypt используют cmdline cryptdevice)
+    # Но для отладки можно:
+    printf 'NEOSHY_LOOP=%s\n' "$loop_dev" >/dev/console 2>/dev/null || true
+
+    return 0
 }
