@@ -11,9 +11,9 @@ source=('hook' 'install' 'README.md' 'README-ru.md' 'CHANGELOG.md')
 sha256sums=(
 	'ee2565a266693e3d17daafcb6b9b45af997f892d1d3b1e00cae85c14b00c2d2c'
 	'3414397af335d5073e8bc479f1f163e6367aab0f5aad334f799f3c6cf315f0c5'
-	'd0bd4ce9a9ae94f83b0eb4742c32b2aefbfecccdcdb168fcc619b850eaa796f9'
-	'18c5effa27400a07e40433d86f3eb0f313f8ad1879f56ca932db04b19d18666a'
-	'2753a088d3c423ff550947a060d8c68d4fcb49a7eafc58f05921781a4a00e482')
+	'8190fc6022673e0aaffa64ded20a2dd6d35fd44954b20fecc6b8c8c9f8f34f57'
+	'6c8bf4b8ad7ec57fa6d867b5bc22fc4af4e57f4a71b64f3f3e1c6d504cc575ba'
+	'd49e1e017b864fd67126fb19177586b0fa2ea676a197a25a1196c7b4c17d4c4b')
 
 package() {
     install -Dm755 "$srcdir/hook" "$pkgdir/usr/lib/initcpio/hooks/neoshy"
