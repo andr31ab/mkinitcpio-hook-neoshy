@@ -9,7 +9,7 @@
 
 ---
 
-## 💡 Overview (RIGHT NOW THIS BRANCH IS TESTING!)
+## 💡 Overview
 
 `mkinitcpio-hook-neoshy` is a custom mkinitcpio hook that prepares a containerized, encrypted root filesystem **before** the standard `encrypt` hook runs.
 
