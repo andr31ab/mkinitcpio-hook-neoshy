@@ -5,7 +5,7 @@
 ![Build](https://img.shields.io/badge/build-makepkg-brightgreen) ![Shell
 Style](https://img.shields.io/badge/style-posix--ash-yellow)
 
-👉 **README на русском:** `README-ru.md`
+👉 **README на английском:** `README.md`
 
 ------------------------------------------------------------------------
 
