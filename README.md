@@ -5,96 +5,107 @@
 [![Build](https://img.shields.io/badge/build-makepkg-brightgreen)](#)
 [![Shell Style](https://img.shields.io/badge/style-posix--ash-yellow)](#)
 
-👉 [README in Russian](README-ru.md)
-
-Custom mkinitcpio hook to mount a container image from a block device before running the `encrypt` hook.
+👉 **README in Russian:** `README-ru.md`
 
 ---
 
-## 💡 What it does
+## 💡 Overview
 
-This hook is designed for setups where your encrypted root filesystem is stored *inside a container file* on a block device, not on the device itself.
+`mkinitcpio-hook-neoshy` is a custom mkinitcpio hook that prepares a containerized, encrypted root filesystem **before** the standard `encrypt` hook runs.
 
-It performs the following steps:
+It supports **two boot modes**:
 
-1. Mounts the block device specified by `src_rootfs=...`
-2. Locates the container image inside it
-3. Attaches it to a loop device
-4. Makes the loop device accessible to the `encrypt` hook via `cryptdevice=...`
+1. **Legacy Mode:**  
+   Encrypted root filesystem stored inside a container file (`.img`, `.mkv`, etc.) located directly on the block device.
+
+2. **Nested (“Matryoshka”) Mode — NEW:**  
+   The container file resides on a **plain dm-crypt encrypted outer device**, such as an encrypted external HDD or SSD.  
+   The hook unlocks the *outer* encrypted layer first, mounts it, locates the inner container file, and exposes it as a loop device for the `encrypt` hook to use.
 
 ---
 
-## 🧵 Kernel cmdline usage
+## 🧩 Features
 
-You must add the following parameter to your kernel cmdline:
+### ✔️ **Legacy Mode**
+- Mounts a block device
+- Locates a container file using `src_rootfs=<device>:<path>`
+- Attaches it to `/dev/loop0`
+- Passes it to the `encrypt` hook for inner decryption (`cryptdevice=/dev/loop0:root`)
 
+### ✔️ **Nested Mode (“Matryoshka Mode”)**
+- Unlocks an **outer** dm-crypt *plain* device using:
+  - Password prompt
+  - Custom crypto parameters (`outer_crypto=HASH:CIPHER:KEYSIZE:OFFSET`)
+- Mounts the decrypted outer filesystem
+- Locates the inner container (`src_rootfs=:<path/to/container>`)
+- Sets up a loop device for the inner image
+- Allows the standard `encrypt` hook to decrypt the *inner* root filesystem
+
+---
+
+## 🧵 Kernel Cmdline Parameters
+
+### ### **Legacy Mode**
 ```
-src_rootfs=<device_identifier>:/path/to/container.img cryptdevice=/dev/loop0:your_crypt_name root=/dev/mapper/your_crypt_name
+src_rootfs=<device_identifier>:/path/to/container.img cryptdevice=/dev/loop0:root root=/dev/mapper/root
 ```
 
-Supported `<device_identifier>` formats:
+### **Nested Mode (NEW)**
+```
+outer_device=<device_identifier> outer_crypto=<hash>:<cipher>:<keysize>:<offset> src_rootfs=:/path/to/inner-container.img cryptdevice=/dev/loop0:root cryptkey=<key_params> crypto=<inner_crypto_params> root=/dev/mapper/root
+```
+
+### Supported `<device_identifier>` formats
 - `/dev/sdXY`
 - `UUID=<uuid>`
 - `PARTUUID=<partuuid>`
 - `LABEL=<label>`
 - `PARTLABEL=<partlabel>`
 
-### Example
+---
+
+## 🔒 Nested Mode Cmdline Example
+
+*(Device identifiers and offsets here are placeholders — adjust to your setup.)*
 
 ```
-src_rootfs=UUID=aaaaaaaa-1111-bbbb-2222-cccccccccccc:/crypto/rootfs.img cryptdevice=/dev/loop0:cryptroot cryptkey=PARTUUID=00000000-xxxx-yyyy-9999-777777777777:ext4:/keyfile crypto:::: root=/dev/mapper/cryptroot rw initrd=\Arch\initramfs-linux.img
+outer_device=UUID=XXXX-XXXX outer_crypto=sha256:aes-xts-plain64:256:123456 src_rootfs=:/secure/root/container.img cryptdevice=/dev/loop0:root cryptkey=PARTUUID=YYYYYYYY-YYYY-YYYY-YYYY-YYYYYYYYYYYY:offset:size crypto=sha256:aes-xts-plain64:512:600000:0 root=/dev/mapper/root rw
 ```
-
-> **Note:** Parameters `cryptdevice`, `cryptkey`, and `crypto` are provided and handled by the `encrypt` hook. This project does not implement or alter their behavior.  
-> For detailed information, refer to the [ArchWiki article on dm-crypt system configuration](https://wiki.archlinux.org/title/Dm-crypt/System_configuration).
-
-> **Hint:** The loop device (`/dev/loop0`) is created by this hook when the container image is attached.
 
 ---
 
 ## 📦 Installation
 
-### ✅ On Arch-based distros (AUR):
-
-```bash
-paru -S mkinitcpio-hook-neoshy
-# or
+### Arch Linux (AUR)
+```
 yay -S mkinitcpio-hook-neoshy
+# or
+paru -S mkinitcpio-hook-neoshy
 ```
 
-Or manually:
-
-```bash
+### Manual
+```
 git clone https://aur.archlinux.org/mkinitcpio-hook-neoshy.git
 cd mkinitcpio-hook-neoshy
 makepkg -si
 ```
 
-### 💻 On other distros (manual install):
-
-```bash
-make install
-```
-
 ---
 
-## 🔧 Configuration
+## 🔧 mkinitcpio Configuration
 
-After installation, add `neoshy` before `encrypt` in your `/etc/mkinitcpio.conf` `HOOKS` array:
-
-```bash
+### Add the hook before `encrypt`:
+```
 HOOKS=(base udev autodetect modconf block keyboard neoshy encrypt filesystems fsck)
 ```
 
-You may also need to add required modules in `MODULES` array:
-
-```bash
-MODULES=(<your_modules> dm_mod dm_crypt xts sha256)
+### Add required modules:
+```
+MODULES=(dm_mod dm_crypt loop xts aes sha256)
 ```
 
-Rebuild your initramfs:
-
-```bash
+Rebuild initramfs:
+```
 sudo mkinitcpio -P
 ```
 
@@ -110,4 +121,4 @@ Maintainer: Andrei A. Bykov <andreiab9019@gmail.com>
 
 ## 📋 Changelog
 
-See [CHANGELOG.md](CHANGELOG.md) for full release history.
+See `CHANGELOG.md` for full release notes.
