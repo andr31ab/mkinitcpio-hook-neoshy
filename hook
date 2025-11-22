@@ -1,61 +1,112 @@
 #!/usr/bin/ash
 
 device_identify() {
-	local dev="$1"
+    local dev="$1"
+    case "$dev" in
+        UUID=*)       echo "/dev/disk/by-uuid/${dev#UUID=}" ;;
+        PARTUUID=*)   echo "/dev/disk/by-partuuid/${dev#PARTUUID=}" ;;
+        LABEL=*)      echo "/dev/disk/by-label/${dev#LABEL=}" ;;
+        PARTLABEL=*)  echo "/dev/disk/by-partlabel/${dev#PARTLABEL=}" ;;
+        /dev/*)       echo "$dev" ;;
+        *)            echo "[neoshy] ERROR: Unknown device/format: $dev" >&2; exit 1 ;;
+    esac
+}
 
-	case "$dev" in
-		UUID=*)
-			echo "/dev/disk/by-uuid/${dev#UUID=}"
-			;;
-		PARTUUID=*)
-			echo "/dev/disk/by-partuuid/${dev#PARTUUID=}"
-			;;
-		LABEL=*)
-			echo "/dev/disk/by-label/${dev#LABEL=}"
-			;;
-		PARTLABEL=*)
-			echo "/dev/disk/by-partlabel/${dev#PARTLABEL=}"
-			;;
-		/dev/*)
-			echo "$dev"
-			;;
-		*)
-			echo "[neoshy] ERROR: Unknown device or device format: $dev" >&2
-			exit 1
-			;;
-	esac
+wait_for_device() {
+    local dev="$1"
+    local timeout=10
+    echo "[neoshy] Waiting for device $dev..."
+    while [ ! -b "$dev" ] && [ $timeout -gt 0 ]; do
+        sleep 1
+        timeout=$((timeout - 1))
+    done
+    [ -b "$dev" ] || { echo "[neoshy] ERROR: Device $dev timeout." >&2; exit 1; }
 }
 
 run_hook() {
-    echo "[neoshy] Starting hook"
+    echo "[neoshy] Starting hook (Double-Crypto)"
 
+    # Параметры из cmdline
     src_rootfs="$(getarg src_rootfs)"
+    outer_dev_param="$(getarg outer_device)" 
+    outer_crypto_param="$(getarg outer_crypto)" 
 
-	if [ -z "$src_rootfs" ]; then
-        echo "[neoshy] ERROR: Missing required parameter: src_rootfs" >&2
-        exit 1
+    if [ -z "$src_rootfs" ]; then
+        echo "[neoshy] ERROR: src_rootfs required" >&2; exit 1
     fi
 
-	src_dev="${src_rootfs%%:*}"
-	src_img="${src_rootfs#*:}"
+    # Парсинг пути к файлу .mkv (берем все после двоеточия)
+    src_img="${src_rootfs#*:}"
+    mount_point="/mnt"
+    mkdir -p "$mount_point"
 
-	if [ -z "$src_dev" ] || [ -z "$src_img" ]; then
-        echo "[neoshy] ERROR: Invalid src_rootfs format" >&2
-        exit 1
+    # === 1. Разблокировка внешнего носителя ===
+    if [ -n "$outer_dev_param" ]; then
+        echo "[neoshy] Mode: Encrypted Outer Container"
+        
+        real_outer_dev=$(device_identify "$outer_dev_param")
+        wait_for_device "$real_outer_dev"
+
+        # Формируем команду. Всегда plain.
+        CRYPT_CMD="cryptsetup open --type plain"
+
+        # Разбираем outer_crypto=HASH:CIPHER:KEYSIZE:OFFSET
+        # Пример для тебя: :aes-xts-plain64:256:19862809
+        if [ -n "$outer_crypto_param" ]; then
+            OLD_IFS="$IFS"; IFS=":"; set -- $outer_crypto_param; IFS="$OLD_IFS"
+            
+            _hash="$1"
+            _cipher="$2"
+            _keysize="$3"
+            _offset="$4"
+
+            [ -n "$_hash" ]    && CRYPT_CMD="$CRYPT_CMD --hash $_hash"
+            [ -n "$_cipher" ]  && CRYPT_CMD="$CRYPT_CMD --cipher $_cipher"
+            [ -n "$_keysize" ] && CRYPT_CMD="$CRYPT_CMD --key-size $_keysize"
+            [ -n "$_offset" ]  && CRYPT_CMD="$CRYPT_CMD --offset $_offset"
+            
+            echo "[neoshy] Crypto params applied: H:$_hash C:$_cipher K:$_keysize O:$_offset"
+        else
+            echo "[neoshy] Using system defaults for crypto"
+        fi
+
+        echo "[neoshy] Please enter passphrase for OUTER drive:"
+        if ! $CRYPT_CMD "$real_outer_dev" neoshy_outer; then
+             echo "[neoshy] ERROR: Unlock failed!" >&2; exit 1
+        fi
+
+        target_dev="/dev/mapper/neoshy_outer"
+    else
+        # Legacy mode (без внешнего шифрования)
+        src_dev_legacy="${src_rootfs%%:*}"
+        [ -z "$src_dev_legacy" ] && { echo "[neoshy] ERROR: Legacy format error" >&2; exit 1; }
+        real_dev=$(device_identify "$src_dev_legacy")
+        wait_for_device "$real_dev"
+        target_dev="$real_dev"
     fi
 
-	real_dev=$(device_identify "$src_dev")
-	echo "[neoshy] Mounting device: $real_dev"
-	mkdir -p /mnt
-	mount $real_dev /mnt
+    # === 2. Монтирование ===
+    echo "[neoshy] Mounting $target_dev..."
+    # Ждем появления маппера
+    while [ ! -b "$target_dev" ]; do sleep 0.1; done
 
-	if [ ! -f "/mnt$src_img" ]; then
-        echo "[neoshy] ERROR: Image file not found: /mnt$src_img" >&2
-        exit 1
+    if ! mount "$target_dev" "$mount_point"; then
+        # Фолбэк на явный exfat, если auto не сработал
+        mount -t exfat "$target_dev" "$mount_point" || { echo "[neoshy] Mount failed"; exit 1; }
     fi
 
-	echo "[neoshy] Attaching loop device for: /mnt$src_img"
-	losetup --show --find "/mnt$src_img"
+    full_path="${mount_point}${src_img}"
+    if [ ! -f "$full_path" ]; then
+        echo "[neoshy] ERROR: File not found: $full_path" >&2; exit 1
+    fi
 
-	echo "[neoshy] Finishing hook"
+    # === 3. Loopback ===
+    echo "[neoshy] Setting up loop device..."
+    # Пытаемся занять loop0, как требует твой следующий хук
+    if ! losetup /dev/loop0 "$full_path" 2>/dev/null; then
+        echo "[neoshy] WARNING: loop0 busy! Using next free loop."
+        losetup --show --find "$full_path"
+    else
+        echo "/dev/loop0"
+    fi
 }

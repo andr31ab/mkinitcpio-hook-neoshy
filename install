@@ -2,8 +2,15 @@
 
 build() {
     add_module "loop"
+	add_module "exfat"
+	add_module "dm-crypt"
+	add_module "dm-mod"
+	add_module "aes"
+	add_module "sha256"
+    add_module "xts"
     add_binary losetup
     add_binary mount
+	add_binary cryptsetup
     add_runscript
 }
 
